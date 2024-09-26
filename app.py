@@ -5,6 +5,7 @@ import uuid
 import sqlite3
 import json
 from datetime import datetime
+import uvicorn
 
 app = FastAPI()
 
@@ -21,6 +22,10 @@ class Receipt(BaseModel):
 
 receipts = {}
 DATABASE_URL = "sqlite:////data/receipts.db"
+
+@app.get("/")
+async def default():
+   return {"message": "Hello World"}
 
 @app.post("/receipts/process")
 async def process_receipt(receipt: Receipt):
@@ -94,3 +99,6 @@ async def get_points(id: str):
         points += 10
     
     return {"points": points}
+
+if __name__ == "__main__":
+   uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
