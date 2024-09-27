@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List
 import uuid
 import sqlite3
@@ -20,8 +20,9 @@ class Receipt(BaseModel):
     items: List[Item]
     total: str
 
+
 receipts = {}
-DATABASE_URL = "sqlite:////data/receipts.db"
+DATABASE_FILE = "receipts.db"
 
 @app.get("/")
 async def default():
@@ -33,7 +34,7 @@ async def process_receipt(receipt: Receipt):
     receipts[receipt_id] = receipt
 
     # Save the receipt to the database
-    with sqlite3.connect(DATABASE_URL) as conn:
+    with sqlite3.connect(DATABASE_FILE) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -43,6 +44,8 @@ async def process_receipt(receipt: Receipt):
                 purchaseDate TEXT,
                 purchaseTime TEXT,
                 items TEXT,
+                total TEXT
+            )
             """
         )
 
@@ -59,12 +62,22 @@ async def process_receipt(receipt: Receipt):
                        
     return {"id": receipt_id}
 
+# Weird situation where the row returned from db doesn't work with pydantic
+def map_receipt(row):
+    return Receipt(
+        retailer=row[1],
+        purchaseDate=row[2],
+        purchaseTime=row[3],
+        items=[Item(**item) for item in json.loads(row[4])],
+        total=row[5]
+    )
+
 @app.get("/receipts/{id}/points")
 async def get_points(id: str):
     receipt = None
 
     # Check if the receipt exists in the database
-    with sqlite3.connect(DATABASE_URL) as conn:
+    with sqlite3.connect(DATABASE_FILE) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM receipts WHERE id = ?", (id,))
         receipt = cursor.fetchone()
@@ -72,8 +85,8 @@ async def get_points(id: str):
     if receipt is None:
         raise HTTPException(status_code=404, detail="Receipt not found")
     
-    receipt = Receipt(**receipt)
-
+    receipt = map_receipt(receipt)
+    
     points = 0
 
     # Point Rules
