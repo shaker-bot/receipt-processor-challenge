@@ -5,11 +5,8 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Copy the requirements file into the container
-COPY Pipfile Pipfile.lock ./
-RUN pip install pipenv && pipenv install --system --deploy
-
-# Copy the application code into the container
-COPY src/ app
+COPY Pipfile Pipfile.lock app.py ./
+RUN pip install pipenv && pipenv install
 
 # Expose the port that the app will run on
 EXPOSE 8000
